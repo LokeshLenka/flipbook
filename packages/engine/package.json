@@ -1,0 +1,13 @@
+{
+  "name": "@flipbook/engine",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "mkdir -p dist && cp dist/flip-book.js dist/index.js && echo 'export {}' > dist/index.d.ts",
+    "dev": "echo 'engine dev not needed'"
+  }
+}

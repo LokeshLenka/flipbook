@@ -1,0 +1,13 @@
+{
+  "name": "flipbook",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace=@flipbook/app",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  }
+}

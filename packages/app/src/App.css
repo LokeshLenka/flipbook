@@ -1,0 +1,41 @@
+/* Immersive ambient glow behind the stage */
+.lamp {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(640px 340px at 50% 28%, rgba(242, 181, 68, 0.1), transparent 70%);
+}
+
+/*
+ * NOTE: the legacy 3D engine renders its whole UI (book, bottom navbar, side
+ * arrows, toolbox popup, loaders) inside a same-origin iframe, so no
+ * parent-document CSS can reach it. Legacy chrome is instead stripped from
+ * inside the iframe at runtime — see stripLegacyChrome() in
+ * src/components/FlipBookViewer.tsx (injects a hiding stylesheet + removes
+ * .controls / .float-wnd / .view > .fnav nodes).
+ */
+
+/* Engine mount fills the viewer; the engine's own iframe fills the mount. */
+.fb-engine {
+  position: absolute;
+  inset: 0;
+}
+.fb-engine iframe {
+  width: 100%;
+  height: 100%;
+}
+
+/* Fullscreen: edge-to-edge reading room — no padding, no frame, max room. */
+.stage-wrap:fullscreen {
+  padding: 0;
+  background: #0e1119;
+}
+.stage-wrap:fullscreen .lamp {
+  display: none;
+}
+.stage-wrap:fullscreen .stage-box {
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

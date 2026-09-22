@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+# builds
+dist/
+packages/*/dist/
+# Vite
+*.local
+# IDE
+.idea/
+.vscode/
+*.swp
+# OS
+.DS_Store
