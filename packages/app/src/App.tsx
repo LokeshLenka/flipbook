@@ -71,16 +71,19 @@ export default function App() {
   }, [scene]);
 
   // Wheel over parent-level chrome (floating toolbar, chips, arrows):
-  // events from the book iframe never reach the parent window, so anything
-  // arriving here is outside the PDF and safe to turn into page flips.
-  // (Wheel inside the iframe is handled there: margins flip, book zooms.)
+  // Wheel inside the viewer (iframe) should be left for the engine to handle
+  // (zoom or its own page-flip logic). We only flip pages when the wheel
+  // occurs on the stage chrome *outside* the viewer.
   useEffect(() => {
     let last = 0;
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) return;
-      const t = e.target as HTMLElement | null;
-      if (!t || t.closest("input,textarea,select")) return;
-      if (!stageRef.current?.contains(t)) return;
+      const target = e.target as HTMLElement | null;
+      if (!target || target.closest("input,textarea,select")) return;
+      // Ignore wheel inside the viewer (let engine handle zoom / its own flip)
+      if (viewerRef.current?.contains(target)) return;
+      // Only act on wheels that land on the stage chrome (outside viewer)
+      if (!stageRef.current?.contains(target)) return;
       const now = performance.now();
       if (now - last < 900) return;
       const ctrl = scene?.ctrl;
