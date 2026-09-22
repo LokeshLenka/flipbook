@@ -309,6 +309,33 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
           if (disposed) return;
           scene = s;
           sweep(s);
+          // Attach wheel zoom handler inside iframe (capture phase) to zoom instead of flip
+          const attachWheelZoom = (sc: FlipBookScene) => {
+            bookFrames().forEach(({ frame, doc }) => {
+              const win = frame.contentWindow;
+              if (!win) return;
+              const ctrl = sc?.ctrl;
+              if (!ctrl) return;
+              let lastZoom = 0;
+              const onWheel = (e: WheelEvent) => {
+                if (e.ctrlKey || e.metaKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                const now = performance.now();
+                if (now - lastZoom < 120) return;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                if (e.deltaY < 0) ctrl.cmdZoomIn();
+                else if (e.deltaY > 0) ctrl.cmdZoomOut();
+                lastZoom = now;
+              };
+              win.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
+              doc.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
+              // store for cleanup
+              (win as any).__folioWheelZoom = onWheel;
+              (doc as any).__folioWheelZoom = onWheel;
+            });
+          };
+          attachWheelZoom(s);
+          sweep(s);
           onReadyRef.current(s);
           const { page, pages } = readPage(s);
           onPageRef.current(page, pages);
@@ -323,6 +350,16 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
       disposed = true;
       if (poll !== undefined) window.clearInterval(poll);
       if (guard !== undefined) window.clearInterval(guard);
+      // cleanup wheel zoom listeners
+      bookFrames().forEach(({ frame, doc }) => {
+        const win = frame.contentWindow;
+        if (!win) return;
+        const onWheel = (win as any).__folioWheelZoom;
+        if (onWheel) {
+          win.removeEventListener("wheel", onWheel as EventListener, { capture: true });
+          doc.removeEventListener("wheel", onWheel as EventListener, { capture: true });
+        }
+      });
       window.removeEventListener("mouseup", forwardRelease);
       window.removeEventListener("pointerup", forwardRelease);
       window.removeEventListener("mousemove", forwardMove);

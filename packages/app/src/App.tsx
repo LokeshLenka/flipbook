@@ -176,39 +176,7 @@ export default function App() {
     };
   }, [scene]);
 
-  // Wheel zoom on the viewer (mouse wheel / two-finger trackpad scroll) – intercept on the iframe.
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    const iframe = viewer.querySelector("iframe");
-    if (!iframe) return;
-    let lastZoom = 0;
-    const onWheel = (e: WheelEvent) => {
-      // ignore ctrl+wheel (browser zoom) and horizontal scroll
-      if (e.ctrlKey || e.metaKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      const now = performance.now();
-      if (now - lastZoom < 120) return;
-      const ctrl = scene?.ctrl;
-      if (!ctrl) return;
-      e.preventDefault(); // stop engine's own wheel handler (page flip)
-      e.stopImmediatePropagation(); // stop engine's handler on canvas
-      if (e.deltaY < 0) {
-        ctrl.cmdZoomIn();
-      } else if (e.deltaY > 0) {
-        ctrl.cmdZoomOut();
-      }
-      lastZoom = now;
-    };
-    // The engine lives inside the iframe; attach to its window/document in capture phase.
-    const win = iframe.contentWindow;
-    const doc = iframe.contentDocument;
-    if (win) win.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
-    if (doc) doc.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
-    return () => {
-      if (win) win.removeEventListener("wheel", onWheel as EventListener, { capture: true });
-      if (doc) doc.removeEventListener("wheel", onWheel as EventListener, { capture: true });
-    };
-  }, [scene]);
+  
 
   // Track fullscreen to swap the maximize icon.
   useEffect(() => {
