@@ -77,52 +77,6 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
     // BUG FIX — arrow keys: keyboard focus lives inside the book iframe, so
     // keydown never bubbles to the parent window listener in App.tsx.
     // Listen in the iframe document itself (once per document).
-    //
-    // WHEEL: two-finger trackpad scroll / mouse wheel over the viewer margins
-    // flips pages; over the book itself the engine keeps its wheel-zoom, and
-    // pinch-zoom (ctrl/meta+wheel) always passes through untouched. The
-    // listener runs in the capture phase and stops margin events before the
-    // engine's zoom handler (bound on the canvas) ever sees them.
-    // "Over the book" is decided by raycasting the pointer into the live
-    // 3D scene, so it stays correct while zoomed or panned.
-    const WHEEL_COOLDOWN = 900;
-    let lastWheelFlip = 0;
-
-    const isOverBook = (clientX: number, clientY: number): boolean => {
-      try {
-        const frames = bookFrames();
-        const sc = scene as any;
-        const fw = frames[0]?.frame.contentWindow as any;
-        const THREE = fw?.THREE;
-        const visual = sc?.visual;
-        const book = sc?.book;
-        if (!frames[0] || !THREE || !visual?.camera || !book?.three) return false;
-        const r = frames[0].frame.getBoundingClientRect();
-        const nx = ((clientX - r.left) / r.width) * 2 - 1;
-        const ny = -((clientY - r.top) / r.height) * 2 + 1;
-        const ray = new THREE.Raycaster();
-        ray.setFromCamera(new THREE.Vector2(nx, ny), visual.camera);
-        return ray.intersectObject(book.three, true).length > 0;
-      } catch {
-        return false;
-      }
-    };
-
-    const flipByWheel = (dx: number, dy: number) => {
-      const now = performance.now();
-      if (now - lastWheelFlip < WHEEL_COOLDOWN) return;
-      const ctrl = scene?.ctrl;
-      if (!ctrl) return;
-      lastWheelFlip = now;
-      // Scroll down / swipe left = forward (matches reader conventions).
-      if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 0) ctrl.cmdForward();
-        else if (dx < 0) ctrl.cmdBackward();
-      } else {
-        if (dy > 0) ctrl.cmdForward();
-        else if (dy < 0) ctrl.cmdBackward();
-      }
-    };
 
     const attachIframeHandlers = (s: FlipBookScene) => {
       bookFrames().forEach(({ doc }) => {
@@ -140,19 +94,7 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
             s.ctrl?.cmdBackward();
           }
         });
-        d.addEventListener(
-          "wheel",
-          (e: WheelEvent) => {
-            if (disposed || e.ctrlKey || e.metaKey || e.buttons !== 0) return;
-            const t = e.target as HTMLElement | null;
-            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
-            if (isOverBook(e.clientX, e.clientY)) return;
-            e.preventDefault();
-            e.stopPropagation();
-            flipByWheel(e.deltaX, e.deltaY);
-          },
-          { capture: true, passive: false },
-        );
+        // No custom wheel handler – let the engine's native mouseCmdWheelZoom handle zoom.
       });
     };
 
@@ -309,33 +251,6 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
           if (disposed) return;
           scene = s;
           sweep(s);
-          // Attach wheel zoom handler inside iframe (capture phase) to zoom instead of flip
-          const attachWheelZoom = (sc: FlipBookScene) => {
-            bookFrames().forEach(({ frame, doc }) => {
-              const win = frame.contentWindow;
-              if (!win) return;
-              const ctrl = sc?.ctrl;
-              if (!ctrl) return;
-              let lastZoom = 0;
-              const onWheel = (e: WheelEvent) => {
-                if (e.ctrlKey || e.metaKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-                const now = performance.now();
-                if (now - lastZoom < 120) return;
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                if (e.deltaY < 0) ctrl.cmdZoomIn();
-                else if (e.deltaY > 0) ctrl.cmdZoomOut();
-                lastZoom = now;
-              };
-              win.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
-              doc.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
-              // store for cleanup
-              (win as any).__folioWheelZoom = onWheel;
-              (doc as any).__folioWheelZoom = onWheel;
-            });
-          };
-          attachWheelZoom(s);
-          sweep(s);
           onReadyRef.current(s);
           const { page, pages } = readPage(s);
           onPageRef.current(page, pages);
@@ -350,16 +265,6 @@ export default function FlipBookViewer({ pdfUrl, reloadKey, onReady, onPage }: P
       disposed = true;
       if (poll !== undefined) window.clearInterval(poll);
       if (guard !== undefined) window.clearInterval(guard);
-      // cleanup wheel zoom listeners
-      bookFrames().forEach(({ frame, doc }) => {
-        const win = frame.contentWindow;
-        if (!win) return;
-        const onWheel = (win as any).__folioWheelZoom;
-        if (onWheel) {
-          win.removeEventListener("wheel", onWheel as EventListener, { capture: true });
-          doc.removeEventListener("wheel", onWheel as EventListener, { capture: true });
-        }
-      });
       window.removeEventListener("mouseup", forwardRelease);
       window.removeEventListener("pointerup", forwardRelease);
       window.removeEventListener("mousemove", forwardMove);
