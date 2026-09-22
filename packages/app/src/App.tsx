@@ -19,7 +19,9 @@ import {
 import type { FlipBookScene } from "./flipbook-types";
 import "./App.css";
 
-const SAMPLES = [{ label: "Condo Living (33 pages)", url: "/books/sample.pdf" }];
+const SAMPLES = [
+  { label: "Condo Living (33 pages)", url: "/books/sample.pdf" },
+];
 
 export default function App() {
   const [pdfUrl, setPdfUrl] = useState(SAMPLES[0].url);
@@ -35,10 +37,20 @@ export default function App() {
   // Floating toolbar drag state (ref-driven: no re-renders while dragging).
   const barRef = useRef<HTMLDivElement>(null);
   const barPos = useRef({ x: 0, y: 0 });
-  const dragRef = useRef<{ sx: number; sy: number; dx: number; dy: number; dragging: boolean } | null>(null);
+  const dragRef = useRef<{
+    sx: number;
+    sy: number;
+    dx: number;
+    dy: number;
+    dragging: boolean;
+  } | null>(null);
   const suppressClick = useRef(false);
   // Pinch zoom state
-  const pinchRef = useRef<{ pointers: Map<number, {x:number,y:number}>; lastDist: number | null; lastZoomTime: number }>({
+  const pinchRef = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    lastDist: number | null;
+    lastZoomTime: number;
+  }>({
     pointers: new Map(),
     lastDist: null,
     lastZoomTime: 0,
@@ -241,7 +253,10 @@ export default function App() {
       // Clamp inside the stage so the bar can't be lost off-screen.
       const sr = stage.getBoundingClientRect();
       const br = bar.getBoundingClientRect();
-      x = Math.min(Math.max(x, -(sr.width / 2 - br.width / 2 - 8)), sr.width / 2 - br.width / 2 - 8);
+      x = Math.min(
+        Math.max(x, -(sr.width / 2 - br.width / 2 - 8)),
+        sr.width / 2 - br.width / 2 - 8,
+      );
       y = Math.min(Math.max(y, -(sr.height - br.height - 8)), 0);
     }
     barPos.current = { x, y };
@@ -280,173 +295,194 @@ export default function App() {
 
   return (
     <TooltipProvider delayDuration={200}>
-    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
-      {/* slim header */}
-      <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[#0b0d12]/85 px-4 py-2.5 backdrop-blur-md sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#f2b544] to-[#e07f3a] text-[#241a05] shadow-[0_6px_20px_rgba(242,181,68,0.35)]">
-            <BookOpenText size={18} />
-          </span>
-          <div className="leading-tight">
-            <h1 className="m-0 text-[16px] font-semibold tracking-tight">Folio</h1>
-            <p className="m-0 text-xs text-[var(--muted)]">Immersive 3D reader</p>
+      <div className="flex h-dvh flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+        {/* slim header */}
+        <header className="sticky top-0 z-20 flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[#0b0d12]/85 px-4 py-2.5 backdrop-blur-md sm:px-6">
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <select
+                  className="h-9 max-w-44 cursor-pointer rounded-xl border border-[var(--border)] bg-white/[0.06] px-2.5 text-sm text-[var(--foreground)] sm:max-w-60"
+                  value={pdfUrl.startsWith("blob:") ? "__upload__" : pdfUrl}
+                  aria-label="Sample book"
+                  onChange={(e) => {
+                    if (e.target.value === "__upload__") return;
+                    setPdfUrl(e.target.value);
+                    setFileName("CondoLiving.pdf");
+                    setReloadKey((k) => k + 1);
+                  }}
+                >
+                  {SAMPLES.map((s) => (
+                    <option key={s.url} value={s.url} className="text-black">
+                      {s.label}
+                    </option>
+                  ))}
+                  {pdfUrl.startsWith("blob:") && (
+                    <option value="__upload__" className="text-black">
+                      Uploaded file
+                    </option>
+                  )}
+                </select>
+              </TooltipTrigger>
+              <TooltipContent container={isFull ? stageRef.current : undefined}>
+                Sample book
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild title="Open your own PDF">
+                  <label className="cursor-pointer">
+                    <FileUp />
+                    <span className="hidden sm:inline">Open PDF</span>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      hidden
+                      onChange={(e) => pickFile(e.target.files?.[0])}
+                    />
+                  </label>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent container={isFull ? stageRef.current : undefined}>
+                Open your own PDF
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </div>
+        </header>
 
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <select
-            className="h-9 max-w-44 cursor-pointer rounded-xl border border-[var(--border)] bg-white/[0.06] px-2.5 text-sm text-[var(--foreground)] sm:max-w-60"
-            value={pdfUrl.startsWith("blob:") ? "__upload__" : pdfUrl}
-            aria-label="Sample book"
-            onChange={(e) => {
-              if (e.target.value === "__upload__") return;
-              setPdfUrl(e.target.value);
-              setFileName("CondoLiving.pdf");
-              setReloadKey((k) => k + 1);
-            }}
-          >
-            {SAMPLES.map((s) => (
-              <option key={s.url} value={s.url} className="text-black">
-                {s.label}
-              </option>
-            ))}
-            {pdfUrl.startsWith("blob:") && (
-              <option value="__upload__" className="text-black">
-                Uploaded file
-              </option>
-            )}
-          </select>
-            </TooltipTrigger>
-            <TooltipContent container={isFull ? stageRef.current : undefined}>Sample book</TooltipContent>
-          </Tooltip>
+        {/* immersive stage — fills all remaining space */}
+        <main
+          ref={stageRef}
+          className="stage-wrap relative flex min-h-0 flex-1 flex-col items-center px-3 py-3 sm:px-5"
+        >
+          <div className="lamp" aria-hidden />
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild title="Open your own PDF">
-            <label className="cursor-pointer">
-              <FileUp />
-              <span className="hidden sm:inline">Open PDF</span>
-              <input
-                type="file"
-                accept="application/pdf"
-                hidden
-                onChange={(e) => pickFile(e.target.files?.[0])}
-              />
-            </label>
-          </Button>
-            </TooltipTrigger>
-            <TooltipContent container={isFull ? stageRef.current : undefined}>Open your own PDF</TooltipContent>
-          </Tooltip>
-        </div>
-      </header>
-
-      {/* immersive stage — fills all remaining space */}
-      <main ref={stageRef} className="stage-wrap relative flex min-h-0 flex-1 flex-col items-center px-3 py-3 sm:px-5">
-        <div className="lamp" aria-hidden />
-
-        <div className="stage-box relative flex min-h-0 w-full max-w-[1180px] flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[#141824] shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
-          <div ref={viewerRef} className="viewer relative min-h-0 flex-1 bg-[#0e1119]">
-            <FlipBookViewer
-              pdfUrl={pdfUrl}
-              reloadKey={reloadKey}
-              onReady={handleReady}
-              onPage={handlePage}
-            />
-
-            {/* filename chip */}
-            <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[60%] truncate rounded-full border border-[var(--border)] bg-black/55 px-3 py-1.5 text-[13px] font-medium backdrop-blur-md" title={fileName}>
-              {fileName}
-            </div>
-
-            {/* maximize */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label={isFull ? "Exit fullscreen" : "Enter fullscreen"}
-              onClick={toggleFull}
-              className="absolute right-4 top-4 z-10 h-10 w-10 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75"
-            >
-              {isFull ? <Minimize /> : <Maximize />}
-            </Button>
-              </TooltipTrigger>
-              <TooltipContent container={isFull ? stageRef.current : undefined}>{isFull ? "Exit fullscreen (Esc)" : "Fullscreen"}</TooltipContent>
-            </Tooltip>
-
-            {/* modern side arrows */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Previous page"
-              disabled={busy}
-              onClick={() => ctrl?.cmdBackward()}
-              className="absolute left-3 top-1/2 z-10 h-12 w-12 -translate-y-1/2 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75 sm:left-5"
-            >
-              <ChevronLeft className="!size-6" />
-            </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" container={isFull ? stageRef.current : undefined}>Previous page</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-            <Button
-              variant="secondary"
-              size="icon"
-              aria-label="Next page"
-              disabled={busy}
-              onClick={() => ctrl?.cmdForward()}
-              className="absolute right-3 top-1/2 z-10 h-12 w-12 -translate-y-1/2 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75 sm:right-5"
-            >
-              <ChevronRight className="!size-6" />
-            </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left" container={isFull ? stageRef.current : undefined}>Next page</TooltipContent>
-            </Tooltip>
-
-            {/* floating draggable toolbar */}
+          <div className="stage-box relative flex min-h-0 w-full max-w-[1180px] flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[#141824] shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
             <div
-              ref={barRef}
-              className="absolute bottom-4 left-1/2 z-10 cursor-grab [touch-action:none] active:cursor-grabbing"
-              style={{ transform: "translate(-50%, 0)" }}
-              onPointerDown={onBarPointerDown}
-              onPointerMove={onBarPointerMove}
-              onPointerUp={onBarPointerUp}
-              onPointerCancel={onBarPointerUp}
-              onClickCapture={onBarClickCapture}
-              onDoubleClick={onBarDoubleClick}
+              ref={viewerRef}
+              className="viewer relative min-h-0 flex-1 bg-[#0e1119]"
             >
-              <Toolbar
-                page={page}
-                pages={pages}
-                busy={busy}
-                tooltipContainer={isFull ? stageRef.current : undefined}
-                onPrev={() => ctrl?.cmdBackward()}
-                onNext={() => ctrl?.cmdForward()}
-                onFastPrev={() => ctrl?.cmdFastBackward()}
-                onFastNext={() => ctrl?.cmdFastForward()}
-                onGoTo={(n) => ctrl?.goToPage(Math.min(Math.max(n - 1, 0), Math.max(0, pages - 1)))}
-                onZoomIn={() => ctrl?.cmdZoomIn()}
-                onZoomOut={() => ctrl?.cmdZoomOut()}
-                onFit={() => ctrl?.cmdDefaultZoom()}
-                onPrint={() => ctrl?.cmdPrint()}
-                onDownload={() => {
-                  const a = document.createElement("a");
-                  a.href = pdfUrl;
-                  a.download = fileName || "book.pdf";
-                  a.click();
-                }}
-                onFull={toggleFull}
+              <FlipBookViewer
+                pdfUrl={pdfUrl}
+                reloadKey={reloadKey}
+                onReady={handleReady}
+                onPage={handlePage}
               />
+
+              {/* filename chip */}
+              <div
+                className="pointer-events-none absolute left-4 top-4 z-10 max-w-[60%] truncate rounded-full border border-[var(--border)] bg-black/55 px-3 py-1.5 text-[13px] font-medium backdrop-blur-md"
+                title={fileName}
+              >
+                {fileName}
+              </div>
+
+              {/* maximize */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    aria-label={isFull ? "Exit fullscreen" : "Enter fullscreen"}
+                    onClick={toggleFull}
+                    className="absolute right-4 top-4 z-10 h-10 w-10 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75"
+                  >
+                    {isFull ? <Minimize /> : <Maximize />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  container={isFull ? stageRef.current : undefined}
+                >
+                  {isFull ? "Exit fullscreen (Esc)" : "Fullscreen"}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* modern side arrows */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    aria-label="Previous page"
+                    disabled={busy}
+                    onClick={() => ctrl?.cmdBackward()}
+                    className="absolute left-3 top-1/2 z-10 h-12 w-12 -translate-y-1/2 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75 sm:left-5"
+                  >
+                    <ChevronLeft className="!size-6" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  container={isFull ? stageRef.current : undefined}
+                >
+                  Previous page
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    aria-label="Next page"
+                    disabled={busy}
+                    onClick={() => ctrl?.cmdForward()}
+                    className="absolute right-3 top-1/2 z-10 h-12 w-12 -translate-y-1/2 rounded-full border-white/15 bg-black/55 text-white shadow-xl backdrop-blur-md hover:bg-black/75 sm:right-5"
+                  >
+                    <ChevronRight className="!size-6" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="left"
+                  container={isFull ? stageRef.current : undefined}
+                >
+                  Next page
+                </TooltipContent>
+              </Tooltip>
+
+              {/* floating draggable toolbar */}
+              <div
+                ref={barRef}
+                className="absolute bottom-4 left-1/2 z-10 cursor-grab [touch-action:none] active:cursor-grabbing"
+                style={{ transform: "translate(-50%, 0)" }}
+                onPointerDown={onBarPointerDown}
+                onPointerMove={onBarPointerMove}
+                onPointerUp={onBarPointerUp}
+                onPointerCancel={onBarPointerUp}
+                onClickCapture={onBarClickCapture}
+                onDoubleClick={onBarDoubleClick}
+              >
+                <Toolbar
+                  page={page}
+                  pages={pages}
+                  busy={busy}
+                  tooltipContainer={isFull ? stageRef.current : undefined}
+                  onPrev={() => ctrl?.cmdBackward()}
+                  onNext={() => ctrl?.cmdForward()}
+                  onFastPrev={() => ctrl?.cmdFastBackward()}
+                  onFastNext={() => ctrl?.cmdFastForward()}
+                  onGoTo={(n) =>
+                    ctrl?.goToPage(
+                      Math.min(Math.max(n - 1, 0), Math.max(0, pages - 1)),
+                    )
+                  }
+                  onZoomIn={() => ctrl?.cmdZoomIn()}
+                  onZoomOut={() => ctrl?.cmdZoomOut()}
+                  onFit={() => ctrl?.cmdDefaultZoom()}
+                  onPrint={() => ctrl?.cmdPrint()}
+                  onDownload={() => {
+                    const a = document.createElement("a");
+                    a.href = pdfUrl;
+                    a.download = fileName || "book.pdf";
+                    a.click();
+                  }}
+                  onFull={toggleFull}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
     </TooltipProvider>
   );
 }
