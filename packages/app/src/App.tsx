@@ -191,6 +191,7 @@ export default function App() {
       const ctrl = scene?.ctrl;
       if (!ctrl) return;
       e.preventDefault(); // stop engine's own wheel handler (page flip)
+      e.stopImmediatePropagation(); // stop engine's handler on canvas
       if (e.deltaY < 0) {
         ctrl.cmdZoomIn();
       } else if (e.deltaY > 0) {
@@ -198,14 +199,14 @@ export default function App() {
       }
       lastZoom = now;
     };
-    // The engine lives inside the iframe; attach to its window/document.
+    // The engine lives inside the iframe; attach to its window/document in capture phase.
     const win = iframe.contentWindow;
     const doc = iframe.contentDocument;
-    if (win) win.addEventListener("wheel", onWheel as EventListener, { passive: false });
-    if (doc) doc.addEventListener("wheel", onWheel as EventListener, { passive: false });
+    if (win) win.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
+    if (doc) doc.addEventListener("wheel", onWheel as EventListener, { passive: false, capture: true });
     return () => {
-      if (win) win.removeEventListener("wheel", onWheel as EventListener);
-      if (doc) doc.removeEventListener("wheel", onWheel as EventListener);
+      if (win) win.removeEventListener("wheel", onWheel as EventListener, { capture: true });
+      if (doc) doc.removeEventListener("wheel", onWheel as EventListener, { capture: true });
     };
   }, [scene]);
 
