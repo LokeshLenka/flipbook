@@ -30,12 +30,19 @@ export default function App() {
   const [pages, setPages] = useState(0);
   const [isFull, setIsFull] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   // Floating toolbar drag state (ref-driven: no re-renders while dragging).
   const barRef = useRef<HTMLDivElement>(null);
   const barPos = useRef({ x: 0, y: 0 });
   const dragRef = useRef<{ sx: number; sy: number; dx: number; dy: number; dragging: boolean } | null>(null);
   const suppressClick = useRef(false);
+  // Pinch zoom state
+  const pinchRef = useRef<{ pointers: Map<number, {x:number,y:number}>; lastDist: number | null; lastZoomTime: number }>({
+    pointers: new Map(),
+    lastDist: null,
+    lastZoomTime: 0,
+  });
 
   const handleReady = useCallback((s: FlipBookScene | null) => {
     setScene(s);
@@ -89,6 +96,70 @@ export default function App() {
     };
     window.addEventListener("wheel", onWheel, { passive: true });
     return () => window.removeEventListener("wheel", onWheel);
+  }, [scene]);
+
+  // Pinch zoom on the viewer (two-finger pinch) – works on trackpad & touch.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    const state = pinchRef.current;
+
+    const onPointerDown = (e: PointerEvent) => {
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (state.pointers.size === 2) {
+        const pts = Array.from(state.pointers.values());
+        const dx = pts[0].x - pts[1].x;
+        const dy = pts[0].y - pts[1].y;
+        state.lastDist = Math.hypot(dx, dy);
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!state.pointers.has(e.pointerId)) return;
+      state.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (state.pointers.size === 2 && state.lastDist !== null) {
+        const pts = Array.from(state.pointers.values());
+        const dx = pts[0].x - pts[1].x;
+        const dy = pts[0].y - pts[1].y;
+        const dist = Math.hypot(dx, dy);
+        const now = performance.now();
+        // debounce zoom actions (min 120ms)
+        if (now - state.lastZoomTime > 120) {
+          const ctrl = scene?.ctrl;
+          if (ctrl) {
+            if (dist > state.lastDist * 1.02) {
+              ctrl.cmdZoomIn();
+              state.lastZoomTime = now;
+            } else if (dist < state.lastDist * 0.98) {
+              ctrl.cmdZoomOut();
+              state.lastZoomTime = now;
+            }
+          }
+        }
+        state.lastDist = dist;
+      }
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      state.pointers.delete(e.pointerId);
+      if (state.pointers.size < 2) {
+        state.lastDist = null;
+      }
+    };
+
+    viewer.addEventListener("pointerdown", onPointerDown);
+    viewer.addEventListener("pointermove", onPointerMove);
+    viewer.addEventListener("pointerup", onPointerUp);
+    viewer.addEventListener("pointercancel", onPointerUp);
+    viewer.addEventListener("pointerleave", onPointerUp);
+
+    return () => {
+      viewer.removeEventListener("pointerdown", onPointerDown);
+      viewer.removeEventListener("pointermove", onPointerMove);
+      viewer.removeEventListener("pointerup", onPointerUp);
+      viewer.removeEventListener("pointercancel", onPointerUp);
+      viewer.removeEventListener("pointerleave", onPointerUp);
+    };
   }, [scene]);
 
   // Track fullscreen to swap the maximize icon.
@@ -273,7 +344,7 @@ export default function App() {
         <div className="lamp" aria-hidden />
 
         <div className="stage-box relative flex min-h-0 w-full max-w-[1180px] flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[#141824] shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
-          <div className="viewer relative min-h-0 flex-1 bg-[#0e1119]">
+          <div ref={viewerRef} className="viewer relative min-h-0 flex-1 bg-[#0e1119]">
             <FlipBookViewer
               pdfUrl={pdfUrl}
               reloadKey={reloadKey}
